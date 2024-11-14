@@ -289,36 +289,36 @@
 
         setupCellLikeStructure() {
           // Membrane
-          this.typeConfigs[0].count = 100;
+          this.typeConfigs[0].count = 80;
           this.typeConfigs[0].radius = 3;
           this.typeConfigs[0].color = "#e53d8f";
           this.typeConfigs[0].interactionRange = 150;
-          this.typeConfigs[0].repulsionStrength = 0.5;
-          this.typeConfigs[0].interactions = [0.2, -0.2, 0.1, -0.1];
+          this.typeConfigs[0].repulsionStrength = 1.15;
+          this.typeConfigs[0].interactions = [0.2, -0.4, 0.1, -0.1];
 
           // Nucleus
-          this.typeConfigs[1].count = 20;
+          this.typeConfigs[1].count = 16;
           this.typeConfigs[1].radius = 4;
           this.typeConfigs[1].color = "#19ef83";
-          this.typeConfigs[1].interactionRange = 100;
+          this.typeConfigs[1].interactionRange = 200;
           this.typeConfigs[1].repulsionStrength = 1;
-          this.typeConfigs[1].interactions = [-0.2, 0.9, -0.1, -0.1];
+          this.typeConfigs[1].interactions = [-0.2, 0.2, 0.2, -0.1];
 
           // Cytoplasm
-          this.typeConfigs[2].count = 200;
+          this.typeConfigs[2].count = 160;
           this.typeConfigs[2].radius = 2;
           this.typeConfigs[2].color = "#12e0ff";
-          this.typeConfigs[2].interactionRange = 80;
-          this.typeConfigs[2].repulsionStrength = 0.1;
-          this.typeConfigs[2].interactions = [0.1, -0.1, 0.05, 0.05];
+          this.typeConfigs[2].interactionRange = 200;
+          this.typeConfigs[2].repulsionStrength = 0.5;
+          this.typeConfigs[2].interactions = [0.1, -0.1, 0.1, 0.05];
 
           // Organelle
-          this.typeConfigs[3].count = 30;
-          this.typeConfigs[3].radius = 3;
+          this.typeConfigs[3].count = 32;
+          this.typeConfigs[3].radius = 1;
           this.typeConfigs[3].color = "#f7f8f0";
           this.typeConfigs[3].interactionRange = 90;
           this.typeConfigs[3].repulsionStrength = 0.3;
-          this.typeConfigs[3].interactions = [-0.1, -0.1, 0.05, 0.7];
+          this.typeConfigs[3].interactions = [-0.1, -0.1, 0.05, 0.2];
 
           // Adjust dampening for all particle types
           this.typeConfigs.forEach((config) => {
