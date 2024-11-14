@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .container {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+      }
+      .settings-panel {
+        background: #f0f0f0;
+        padding: 20px;
+        border-radius: 8px;
+        min-width: 300px;
+        max-height: 800px;
+        overflow-y: auto;
+      }
+      .particle-type-settings {
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .interaction-matrix {
+        margin: 10px 0;
+      }
+      .matrix-row {
+        display: flex;
+        gap: 5px;
+        margin: 2px 0;
+      }
+      .matrix-cell {
+        width: 60px;
+      }
+      canvas {
+        border: 1px solid #ccc;
+      }
+      .color-picker {
+        margin: 5px 0;
+      }
+      .param-slider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 5px 0;
+      }
+      .param-slider label {
+        min-width: 120px;
+      }
+      .param-slider input[type="range"] {
+        flex: 1;
+      }
+      .param-slider span {
+        min-width: 40px;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <canvas id="particleCanvas" width="800" height="600"></canvas>
+      <div class="settings-panel" id="settings">
+        <h3>Simulation Settings</h3>
+        <div class="param-slider">
+          <label>Temperature:</label>
+          <input type="range" id="temperature" min="0" max="100" value="2" />
+          <span id="tempValue">2</span>
+        </div>
+        <div class="param-slider">
+          <label>Particle Types:</label>
+          <select id="particleTypes">
+            <option value="2">2 Types</option>
+            <option value="3">3 Types</option>
+            <option value="4" selected>4 Types</option>
+          </select>
+        </div>
+        <div id="particleTypeConfigs"></div>
+        <button id="reset">Reset Simulation</button>
+      </div>
+    </div>
+
+    <script>
+      class ParticleType {
+        constructor(id) {
+          this.id = id;
+          this.count = 50;
+          this.radius = 4;
+          this.color = this.getDefaultColor(id);
+          this.mass = 1;
+          this.interactionRange = 100;
+          this.interactions = new Array(5).fill(0);
+          this.dampening = 0.95;
+          this.repulsionStrength = 1;
+        }
+
+        getDefaultColor(id) {
+          const colors = [
+            "#e53d8f",
+            "#19ef83",
+            "#12e0ff",
+            "#f7f8f0",
+            "#3e405a",
+          ];
+          return colors[id % colors.length];
+        }
+      }
+
+      class Settings {
+        constructor() {
+          this.temperature = 0.02;
+          this.particleTypes = 4;
+          this.typeConfigs = [
+            new ParticleType(0),
+            new ParticleType(1),
+            new ParticleType(2),
+            new ParticleType(3),
+          ];
+          this.setupListeners();
+          this.updateParticleTypeConfigs();
+          this.setupCellLikeStructure();
+        }
+
+        setupListeners() {
+          document
+            .getElementById("temperature")
+            .addEventListener("input", (e) => {
+              this.temperature = e.target.value / 100;
+              document.getElementById("tempValue").textContent = e.target.value;
+            });
+
+          document
+            .getElementById("particleTypes")
+            .addEventListener("change", (e) => {
+              this.particleTypes = parseInt(e.target.value);
+              this.updateParticleTypeConfigs();
+            });
+
+          document.getElementById("reset").addEventListener("click", () => {
+            simulation.reset();
+          });
+        }
+
+        updateParticleTypeConfigs() {
+          const container = document.getElementById("particleTypeConfigs");
+          container.innerHTML = "";
+
+          for (let i = 0; i < this.particleTypes; i++) {
+            const config = this.typeConfigs[i];
+            const typeDiv = document.createElement("div");
+            typeDiv.className = "particle-type-settings";
+
+            typeDiv.innerHTML = `
+                <h4>Particle Type ${i + 1}</h4>
+                <div class="param-slider">
+                    <label>Count:</label>
+                    <input type="range" id="count_${i}" min="0" max="200" value="${
+              config.count
+            }">
+                    <span>${config.count}</span>
+                </div>
+                <div class="param-slider">
+                    <label>Radius:</label>
+                    <input type="range" id="radius_${i}" min="1" max="10" value="${
+              config.radius
+            }">
+                    <span>${config.radius}</span>
+                </div>
+                <div class="param-slider">
+                    <label>Mass:</label>
+                    <input type="range" id="mass_${i}" min="1" max="100" value="${
+              config.mass
+            }">
+                    <span>${config.mass}</span>
+                </div>
+                <div class="param-slider">
+                    <label>Range:</label>
+                    <input type="range" id="range_${i}" min="10" max="200" value="${
+              config.interactionRange
+            }">
+                    <span>${config.interactionRange}</span>
+                </div>
+                <div class="param-slider">
+                    <label>Dampening:</label>
+                    <input type="range" id="damp_${i}" min="90" max="100" value="${
+              config.dampening * 100
+            }">
+                    <span>${config.dampening}</span>
+                </div>
+                <div class="param-slider">
+                    <label>Repulsion:</label>
+                    <input type="range" id="repulsion_${i}" min="0" max="200" value="${
+              config.repulsionStrength * 100
+            }">
+                    <span>${config.repulsionStrength}</span>
+                </div>
+                <div class="color-picker">
+                    <label>Color:</label>
+                    <input type="color" id="color_${i}" value="${config.color}">
+                </div>
+                <div class="interaction-matrix">
+                    <h5>Interactions:</h5>
+                    ${Array(this.particleTypes)
+                      .fill(0)
+                      .map(
+                        (_, j) => `
+                        <div class="matrix-row">
+                            <label>With Type ${j + 1}:</label>
+                            <input type="range" class="matrix-cell" id="interaction_${i}_${j}" 
+                                   min="-100" max="100" value="${
+                                     config.interactions[j] * 100
+                                   }">
+                            <span>${config.interactions[j]}</span>
+                        </div>
+                    `
+                      )
+                      .join("")}
+                </div>
+            `;
+
+            container.appendChild(typeDiv);
+            this.setupTypeListeners(i);
+          }
+        }
+
+        setupTypeListeners(typeIndex) {
+          const config = this.typeConfigs[typeIndex];
+
+          const updateValue = (element, value) => {
+            element.nextElementSibling.textContent = value;
+          };
+
+          document
+            .getElementById(`count_${typeIndex}`)
+            .addEventListener("input", (e) => {
+              config.count = parseInt(e.target.value);
+              updateValue(e.target, config.count);
+            });
+
+          document
+            .getElementById(`radius_${typeIndex}`)
+            .addEventListener("input", (e) => {
+              config.radius = parseInt(e.target.value);
+              updateValue(e.target, config.radius);
+            });
+
+          document
+            .getElementById(`mass_${typeIndex}`)
+            .addEventListener("input", (e) => {
+              config.mass = parseInt(e.target.value);
+              updateValue(e.target, config.mass);
+            });
+
+          document
+            .getElementById(`range_${typeIndex}`)
+            .addEventListener("input", (e) => {
+              config.interactionRange = parseInt(e.target.value);
+              updateValue(e.target, config.interactionRange);
+            });
+
+          document
+            .getElementById(`damp_${typeIndex}`)
+            .addEventListener("input", (e) => {
+              config.dampening = e.target.value / 100;
+              updateValue(e.target, config.dampening);
+            });
+
+          document
+            .getElementById(`repulsion_${typeIndex}`)
+            .addEventListener("input", (e) => {
+              config.repulsionStrength = e.target.value / 100;
+              updateValue(e.target, config.repulsionStrength);
+            });
+
+          document
+            .getElementById(`color_${typeIndex}`)
+            .addEventListener("input", (e) => {
+              config.color = e.target.value;
+            });
+
+          for (let j = 0; j < this.particleTypes; j++) {
+            document
+              .getElementById(`interaction_${typeIndex}_${j}`)
+              .addEventListener("input", (e) => {
+                config.interactions[j] = e.target.value / 100;
+                updateValue(e.target, config.interactions[j]);
+              });
+          }
+        }
+
+        setupCellLikeStructure() {
+          // Membrane
+          this.typeConfigs[0].count = 100;
+          this.typeConfigs[0].radius = 3;
+          this.typeConfigs[0].color = "#e53d8f";
+          this.typeConfigs[0].interactionRange = 150;
+          this.typeConfigs[0].repulsionStrength = 0.5;
+          this.typeConfigs[0].interactions = [0.2, -0.2, 0.1, -0.1];
+
+          // Nucleus
+          this.typeConfigs[1].count = 20;
+          this.typeConfigs[1].radius = 4;
+          this.typeConfigs[1].color = "#19ef83";
+          this.typeConfigs[1].interactionRange = 100;
+          this.typeConfigs[1].repulsionStrength = 1;
+          this.typeConfigs[1].interactions = [-0.2, 0.9, -0.1, -0.1];
+
+          // Cytoplasm
+          this.typeConfigs[2].count = 200;
+          this.typeConfigs[2].radius = 2;
+          this.typeConfigs[2].color = "#12e0ff";
+          this.typeConfigs[2].interactionRange = 80;
+          this.typeConfigs[2].repulsionStrength = 0.1;
+          this.typeConfigs[2].interactions = [0.1, -0.1, 0.05, 0.05];
+
+          // Organelle
+          this.typeConfigs[3].count = 30;
+          this.typeConfigs[3].radius = 3;
+          this.typeConfigs[3].color = "#f7f8f0";
+          this.typeConfigs[3].interactionRange = 90;
+          this.typeConfigs[3].repulsionStrength = 0.3;
+          this.typeConfigs[3].interactions = [-0.1, -0.1, 0.05, 0.7];
+
+          // Adjust dampening for all particle types
+          this.typeConfigs.forEach((config) => {
+            config.dampening = 0.95;
+          });
+
+          // Update UI
+          this.updateParticleTypeConfigs();
+        }
+      }
+
+      class Particle {
+        constructor(x, y, typeConfig) {
+          this.x = x;
+          this.y = y;
+          this.vx = (Math.random() - 0.5) * 2;
+          this.vy = (Math.random() - 0.5) * 2;
+          this.typeConfig = typeConfig;
+        }
+
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.typeConfig.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.typeConfig.color;
+          ctx.fill();
+        }
+
+        update(particles, settings) {
+          particles.forEach((other) => {
+            if (other === this) return;
+
+            const dx = other.x - this.x;
+            const dy = other.y - this.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < this.typeConfig.interactionRange) {
+              const force = this.calculateForce(other, distance);
+
+              const fx = (dx / distance) * force;
+              const fy = (dy / distance) * force;
+
+              this.vx += fx / this.typeConfig.mass;
+              this.vy += fy / this.typeConfig.mass;
+            }
+          });
+
+          this.vx += (Math.random() - 0.5) * settings.temperature;
+          this.vy += (Math.random() - 0.5) * settings.temperature;
+
+          this.vx *= this.typeConfig.dampening;
+          this.vy *= this.typeConfig.dampening;
+
+          this.x += this.vx;
+          this.y += this.vy;
+
+          //   GO THROUGH WALLS
+          //   if (this.x < 0) this.x = canvas.width;
+          //   if (this.x > canvas.width) this.x = 0;
+          //   if (this.y < 0) this.y = canvas.height;
+          //   if (this.y > canvas.height) this.y = 0;
+
+          //    BOUNCE OFF WALLS
+          if (this.x - this.typeConfig.radius < 0) {
+            this.x = this.typeConfig.radius;
+            this.vx = -this.vx;
+          } else if (this.x + this.typeConfig.radius > canvas.width) {
+            this.x = canvas.width - this.typeConfig.radius;
+            this.vx = -this.vx;
+          }
+
+          if (this.y - this.typeConfig.radius < 0) {
+            this.y = this.typeConfig.radius;
+            this.vy = -this.vy;
+          } else if (this.y + this.typeConfig.radius > canvas.height) {
+            this.y = canvas.height - this.typeConfig.radius;
+            this.vy = -this.vy;
+          }
+        }
+
+        calculateForce(other, distance) {
+          const interaction = this.typeConfig.interactions[other.typeConfig.id];
+          const attraction = interaction / (distance * distance);
+          const repulsion =
+            (this.typeConfig.repulsionStrength +
+              other.typeConfig.repulsionStrength) /
+            Math.pow(distance, 3);
+
+          const forceMagnitude = 2.0;
+          return (attraction - repulsion) * forceMagnitude;
+        }
+      }
+
+      class Simulation {
+        constructor() {
+          this.settings = new Settings();
+          this.particles = [];
+          this.reset();
+        }
+
+        reset() {
+          this.particles = [];
+          const centerX = canvas.width / 2;
+          const centerY = canvas.height / 2;
+          for (let i = 0; i < this.settings.particleTypes; i++) {
+            const config = this.settings.typeConfigs[i];
+            for (let j = 0; j < config.count; j++) {
+              const radius = Math.random() * (canvas.width / 4);
+              const angle = Math.random() * 2 * Math.PI;
+              const x = centerX + radius * Math.cos(angle);
+              const y = centerY + radius * Math.sin(angle);
+              this.particles.push(new Particle(x, y, config));
+            }
+          }
+        }
+
+        update() {
+          // Set the background color
+          ctx.fillStyle = "#1a1a1a"; // Dark gray background
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          const updatesPerFrame = 5;
+          for (let i = 0; i < updatesPerFrame; i++) {
+            this.particles.forEach((particle) => {
+              particle.update(this.particles, this.settings);
+            });
+          }
+
+          this.particles.forEach((particle) => {
+            particle.draw();
+          });
+        }
+      }
+
+      const canvas = document.getElementById("particleCanvas");
+      const ctx = canvas.getContext("2d");
+      const simulation = new Simulation();
+
+      function animate() {
+        simulation.update();
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
