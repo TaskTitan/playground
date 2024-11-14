@@ -2,21 +2,36 @@
 <html>
   <head>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&display=swap');
+
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: "League Spartan", sans-serif;
+      }
       .container {
+        position: relative;
         display: flex;
         gap: 20px;
-        padding: 20px;
+      }
+      #particleCanvas {
+        display: block;
       }
       .settings-panel {
-        background: #f0f0f0;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.95);
+        z-index: 10;
         padding: 20px;
         border-radius: 8px;
         min-width: 300px;
-        max-height: 800px;
+        max-height: calc(100vh - 80px);
         overflow-y: auto;
       }
       .particle-type-settings {
-        border: 1px solid #ccc;
         padding: 10px;
         margin: 10px 0;
         border-radius: 4px;
@@ -31,9 +46,6 @@
       }
       .matrix-cell {
         width: 60px;
-      }
-      canvas {
-        border: 1px solid #ccc;
       }
       .color-picker {
         margin: 5px 0;
@@ -415,7 +427,17 @@
         constructor() {
           this.settings = new Settings();
           this.particles = [];
+          this.resizeCanvas();
           this.reset();
+
+          // Add event listener for window resize
+          window.addEventListener("resize", () => this.resizeCanvas());
+        }
+
+        resizeCanvas() {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          this.reset(); // Reset particles when canvas is resized
         }
 
         reset() {
